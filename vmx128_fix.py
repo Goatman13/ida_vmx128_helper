@@ -205,7 +205,6 @@ class vmx128_disassemble(idaapi.IDP_Hooks):
 		if (insn.itype >= ITYPE_START and insn.itype < ITYPE_START + len(self.itable)):
 			#print(self.itable[insn.itype-ITYPE_START].cmt)
 			insn.add_cref(insn.ea + insn.size, 0, 21); # 21 Ordinary flow
-			insn.set_gen_cmt()
 			return 1
 		return 0
 
