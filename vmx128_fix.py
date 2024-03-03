@@ -15,6 +15,7 @@ kVX128   = 1
 kVX128_2 = 2
 kVX128_5 = 3
 kVX128_R = 4
+kVXA     = 5
 
 class vmx128_disassemble(idaapi.IDP_Hooks):
 
@@ -71,15 +72,20 @@ class vmx128_disassemble(idaapi.IDP_Hooks):
 			idef(0x18000200, "vcmpequw128" , kVX128_R, ""),
 			idef(0x18000080, "vcmpgefp128" , kVX128_R, ""),
 			idef(0x18000100, "vcmpgtfp128" , kVX128_R, ""),
+			
+			#Non VMX128 but broken in IDA too (4th operand is imm not reg)...
+			idef(0x1000002C, "vsldoi"      , kVXA    , ""),
 		]
 
 		self.VF_REG = 1
+		self.V_IMM  = 2
 
 		self.reg_types = {
 			1:  [self.VF_REG, self.VF_REG, self.VF_REG],
 			2:  [self.VF_REG, self.VF_REG, self.VF_REG, self.VF_REG],
-			3:  [self.VF_REG, self.VF_REG, self.VF_REG],
+			3:  [self.VF_REG, self.VF_REG, self.VF_REG, self.V_IMM],
 			4:  [self.VF_REG, self.VF_REG, self.VF_REG],
+			5:  [self.VF_REG, self.VF_REG, self.VF_REG, self.V_IMM],
 		}
 
 		self.itable.sort(key=lambda x: x.opcode)
@@ -141,6 +147,13 @@ class vmx128_disassemble(idaapi.IDP_Hooks):
 		vmxD    = (dword >> 21) & 0x1F | (dword << 3) & 0x60
 		self.set_regs_1(insn, vmxD, vmxA, vmxB)
 
+	def decode_type_5(self, insn, dword):
+		vmxA    = (dword >> 16) & 0x1F
+		vmxB    = (dword >> 11) & 0x1F
+		vmxD    = (dword >> 21) & 0x1F
+		vmxShb  = (dword >> 6)  & 0xF
+		self.set_regs_3(insn, vmxD, vmxA, vmxB, vmxShb)
+
 	def set_reg_type(self, op, reg_type):
 		op.specval = reg_type
 
@@ -173,10 +186,16 @@ class vmx128_disassemble(idaapi.IDP_Hooks):
 		opcode = dword & 0xFC0003D0
 		opcode_t = opcode & ~0x40
 		opcode_h = (opcode >> 26 & 0x3F)
+		#VPERM128
 		if opcode_h == 5 and opcode & 0x210 == 0:
 			opcode = 0x14000000
-		elif opcode_h == 4 and opcode & 0x10 == 1:
+		#VSLDOI128
+		elif opcode_h == 4 and opcode & 0x10 == 0x10:
 			opcode = 0x10000010
+		#VSLDOI
+		elif opcode_h == 4 and dword & 0x3F == 0x2C:
+			opcode = 0x1000002C
+		#Compares 128
 		elif opcode_h == 6:
 			if opcode_t == 0x18000000 or opcode_t == 0x18000080 or opcode_t == 0x18000100 or opcode_t == 0x18000180 or opcode_t == 0x18000200:
 				opcode = opcode_t
@@ -210,12 +229,11 @@ class vmx128_disassemble(idaapi.IDP_Hooks):
 
 	def get_register(self, op, ctx):
 
-		if (op.specval == self.VF_REG):
-			return "v%d" % op.reg
+		return "v%d" % op.reg
 
 	def ev_out_operand(self, ctx, op):
 
-		if (ctx.insn.itype >= ITYPE_START and ctx.insn.itype < ITYPE_START + len(self.itable)):
+		if (ctx.insn.itype >= ITYPE_START and ctx.insn.itype < ITYPE_START + len(self.itable) and op.specval == self.VF_REG):
 			ctx.out_register(self.get_register(op, ctx))
 			return 1
 		return 0
