@@ -8,7 +8,7 @@ import ida_idp
 import ida_bytes
 import ida_ua
 
-ITYPE_START = ida_idp.CUSTOM_INSN_ITYPE + 0x100
+ITYPE_START = ida_idp.CUSTOM_INSN_ITYPE + 0x1000
 MNEM_WIDTH = 10
 
 kVX128   = 1
@@ -185,7 +185,7 @@ class vmx128_disassemble(idaapi.IDP_Hooks):
 		dword = ida_bytes.get_wide_dword(insn.ea)
 		opcode = dword & 0xFC0003D0
 		opcode_t = opcode & ~0x40
-		opcode_h = (opcode >> 26 & 0x3F)
+		opcode_h = (opcode >> 26) & 0x3F
 		#VPERM128
 		if opcode_h == 5 and opcode & 0x210 == 0:
 			opcode = 0x14000000
