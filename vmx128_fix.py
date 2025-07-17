@@ -7,6 +7,7 @@ import ida_allins
 import ida_idp
 import ida_bytes
 import ida_ua
+import idc
 
 ITYPE_START = ida_idp.CUSTOM_INSN_ITYPE + 0x1000
 MNEM_WIDTH = 10
@@ -261,7 +262,7 @@ class vmx128_plugin_t(idaapi.plugin_t):
 
 	def init(self):
 		
-		if idaapi.ph.id == idaapi.PLFM_PPC:
+		if idaapi.ph.id == idaapi.PLFM_PPC and (idc.get_idb_path()[-7:-4] in ["xex", "XEX"]):
 			self.vmx128 = vmx128_disassemble()
 			self.vmx128.hook()
 			print("vmx128 instructions disassembler is loaded")
