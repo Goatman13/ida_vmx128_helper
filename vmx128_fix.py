@@ -63,8 +63,6 @@ class vmx128_disassemble(idaapi.IDP_Hooks):
 			idef(0x140003d0, "vsro128"     , kVX128  , ""),
 			idef(0x180001d0, "vsrw128"     , kVX128  , ""),
 			idef(0x14000050, "vsubfp128"   , kVX128  , ""),
-			idef(0x18000380, "vupkhsb128"  , kVX128  , ""),
-			idef(0x180003c0, "vupklsb128"  , kVX128  , ""),
 			idef(0x14000310, "vxor128"     , kVX128  , ""),
 			idef(0x14000000, "vperm128"    , kVX128_2, ""),
 			idef(0x10000010, "vsldoi128"   , kVX128_5, ""),
@@ -262,7 +260,7 @@ class vmx128_plugin_t(idaapi.plugin_t):
 
 	def init(self):
 		
-		if idaapi.ph.id == idaapi.PLFM_PPC and (idc.get_idb_path()[-7:-4] in ["xex", "XEX"]):
+		if idaapi.ph.id == idaapi.PLFM_PPC and (idc.get_idb_path()[-7:-4] in ["xex", "XEX", "exe", "EXE"]):
 			self.vmx128 = vmx128_disassemble()
 			self.vmx128.hook()
 			print("vmx128 instructions disassembler is loaded")
