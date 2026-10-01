@@ -17,6 +17,7 @@ kVX128_2 = 2
 kVX128_5 = 3
 kVX128_R = 4
 kVXA     = 5
+kVX128_U = 6
 
 class vmx128_disassemble(idaapi.IDP_Hooks):
 
@@ -63,8 +64,10 @@ class vmx128_disassemble(idaapi.IDP_Hooks):
 			idef(0x140003d0, "vsro128"     , kVX128  , ""),
 			idef(0x180001d0, "vsrw128"     , kVX128  , ""),
 			idef(0x14000050, "vsubfp128"   , kVX128  , ""),
-			idef(0x18000380, "vupkhsb128"  , kVX128  , ""),
-			idef(0x180003c0, "vupklsb128"  , kVX128  , ""),
+			idef(0x18000380, "vupkhsb128"  , kVX128_U, ""),
+			idef(0x180003c0, "vupklsb128"  , kVX128_U, ""),
+			idef(0x180007a0, "vupkhsh128"  , kVX128_U, ""),
+			idef(0x180007e0, "vupklsh128"  , kVX128_U, ""),
 			idef(0x14000310, "vxor128"     , kVX128  , ""),
 			idef(0x14000000, "vperm128"    , kVX128_2, ""),
 			idef(0x10000010, "vsldoi128"   , kVX128_5, ""),
@@ -87,12 +90,19 @@ class vmx128_disassemble(idaapi.IDP_Hooks):
 			3:  [self.VF_REG, self.VF_REG, self.VF_REG, self.V_IMM],
 			4:  [self.VF_REG, self.VF_REG, self.VF_REG],
 			5:  [self.VF_REG, self.VF_REG, self.VF_REG, self.V_IMM],
+			6:  [self.VF_REG, self.VF_REG],
 		}
 
 		self.itable.sort(key=lambda x: x.opcode)
 
 		for entry in self.itable:
 			entry.name = entry.name.lower()
+
+	def set_regs_u(self, insn, a, b):
+		insn.Op1.type = ida_ua.o_idpspec1
+		insn.Op1.reg = a
+		insn.Op2.type = ida_ua.o_idpspec1
+		insn.Op2.reg = b
 
 	def set_regs_1(self, insn, a, b, c):
 		insn.Op1.type = ida_ua.o_idpspec1
@@ -155,6 +165,11 @@ class vmx128_disassemble(idaapi.IDP_Hooks):
 		vmxShb  = (dword >> 6)  & 0xF
 		self.set_regs_3(insn, vmxD, vmxA, vmxB, vmxShb)
 
+	def decode_type_6(self, insn, dword):
+		vmxB    = (dword >> 11) & 0x1F | (dword << 5) & 0x60
+		vmxD    = (dword >> 21) & 0x1F | (dword << 3) & 0x60
+		self.set_regs_u(insn, vmxD, vmxB)
+
 	def set_reg_type(self, op, reg_type):
 		op.specval = reg_type
 
@@ -168,7 +183,11 @@ class vmx128_disassemble(idaapi.IDP_Hooks):
 		regs = self.reg_types[self.itable[index].typ]
 
 
-		if (len(regs) == 3):
+		if (len(regs) == 2):
+			self.set_reg_type(insn.Op1, regs[0])
+			self.set_reg_type(insn.Op2, regs[1])
+
+		elif (len(regs) == 3):
 			self.set_reg_type(insn.Op1, regs[0])
 			self.set_reg_type(insn.Op2, regs[1])
 			self.set_reg_type(insn.Op3, regs[2])
@@ -200,6 +219,9 @@ class vmx128_disassemble(idaapi.IDP_Hooks):
 		elif opcode_h == 6:
 			if opcode_t == 0x18000000 or opcode_t == 0x18000080 or opcode_t == 0x18000100 or opcode_t == 0x18000180 or opcode_t == 0x18000200:
 				opcode = opcode_t
+			#VUPKHSH128 / VUPKLSH128 share the byte unpacks' masked bits, told apart by VA128 == 0x60
+			elif (opcode == 0x18000380 or opcode == 0x180003C0) and ((dword >> 16) & 0x1F | dword & 0x20 | (dword >> 4) & 0x40) == 0x60:
+				opcode = opcode | 0x420
 		found = False
 		index = 0
 		pos = 0
